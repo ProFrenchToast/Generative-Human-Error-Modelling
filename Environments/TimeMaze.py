@@ -1,8 +1,43 @@
 import enum
+from copy import copy
 
 import random
 
 import numpy as np
+import gym
+
+
+def generate_maze(width, height):
+    maze = np.ones((width, height), dtype=int)
+    maze = maze * CellTypes.Wall
+
+    # select a random starting point
+    start_x = random.randrange(0, width, 1)
+    start_y = random.randrange(0, height, 1)
+    maze[start_x, start_y] = CellTypes.Player
+
+    # now randomly build the maze
+    recursive_depth_first_search(maze, (start_x, start_y))
+
+    # randomly place the goal
+    goal_placed = False
+    while not goal_placed:
+        goal_x = random.randrange(0, width, 1)
+        goal_y = random.randrange(0, height, 1)
+        if maze[goal_x, goal_y] == CellTypes.Empty:
+            maze[goal_x, goal_y] = CellTypes.Goal
+            goal_placed = True
+
+    # randomly place the stopwatch
+    stopwatch_placed = False
+    while not stopwatch_placed:
+        stopwatch_x = random.randrange(0, width, 1)
+        stopwatch_y = random.randrange(0, height, 1)
+        if maze[stopwatch_x, stopwatch_y] == CellTypes.Empty:
+            maze[stopwatch_x, stopwatch_y] = CellTypes.Goal
+            stopwatch_placed = True
+
+    return maze
 
 
 def find_adjacent(maze, cell):
@@ -24,7 +59,7 @@ def find_adjacent(maze, cell):
         adjacent_list.append((cell[0], bottom))
 
     top = cell[1] + 1
-    if top > 0:
+    if top < height:
         adjacent_list.append((cell[0], top))
 
     return adjacent_list
@@ -40,7 +75,7 @@ def recursive_depth_first_search(maze, current_cell):
 
     # now shuffle the list
     random.shuffle(start_adj_walls)
-    #try to dig each adjacent wall if it works then recurse
+    # try to dig each adjacent wall if it works then recurse
     for adjacent_wall in start_adj_walls:
         safe_to_dig = is_safe_to_dig(maze, adjacent_wall)
         if safe_to_dig:
@@ -54,7 +89,7 @@ def is_safe_to_dig(maze, potential_dig_cell):
     adjacent_cells = find_adjacent(maze, potential_dig_cell)
     no_empty_adjacent = 0
     for cell in adjacent_cells:
-        if maze[cell[0], cell[1]] != CellTypes.Wall
+        if maze[cell[0], cell[1]] != CellTypes.Wall:
             no_empty_adjacent += 1
 
     # if there is 2 or more empty cells adjacent then we will cause a loop so we cant dig
@@ -63,46 +98,110 @@ def is_safe_to_dig(maze, potential_dig_cell):
     return safe_to_dig
 
 
+def find_player(maze):
+    for x in range(maze.shape[0]):
+        for y in range(maze.shape[1]):
+            if maze[x, y] == CellTypes.Player:
+                return (x, y)
+    raise Exception("Error no player found in the maze")
 
-class TimeMaze:
+
+class TimeMaze(gym.Env):
+    metadata = {'render.modes': ['human', 'rgb_array', 'ansi']}
+
     def __init__(self, seed=random.getstate(), width=30, height=30):
-        self.maze = TimeMaze.generate_maze(seed, width, height)
-        self.time = 0
-
-    @classmethod
-    def generate_maze(cls, seed, width, height):
+        super().__init__(self)
+        self.action_space = gym.spaces.Discrete(4)
+        self.observation_space = gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int)
+        self.seed = seed
         random.seed(seed)
+        self.width = width
+        self.height = height
 
-        maze = np.ones((width, height), dtype=int)
-        maze = maze * CellTypes.Wall
+        self.maze = generate_maze(width, height)
+        self.time = 0
+        self.has_stopwatch = False
+        self.done = False
 
-        # select a random starting point
-        start_x = random.randrange(0, width, 1)
-        start_y = random.randrange(0, height, 1)
-        maze[start_x, start_y] = CellTypes.Player
+        self.false_move_reward = -10
+        self.time_step_reward = -1
+        self.goal_reward = +100
+        self.stopwatch_factor = 2
+        self.time_limit = 200
 
-        # now randomly build the maze
-        recursive_depth_first_search(maze, (start_x, start_y))
+    def reset(self):
+        self.maze = generate_maze(self.width, self.height)
+        self.time = 0
+        self.has_stopwatch = False
+        self.done = False
 
-        # randomly place the goal
-        goal_placed = False
-        while not goal_placed:
-            goal_x = random.randrange(0, width, 1)
-            goal_y = random.randrange(0, height, 1)
-            if maze[goal_x, goal_y] == CellTypes.Empty:
-                maze[goal_x, goal_y] = CellTypes.Goal
-                goal_placed = True
+    def render(self, mode='ansi'):
+        if mode == 'human':
+            raise NotImplementedError
+        elif mode == 'rgb_array':
+            raise NotImplementedError
+        elif mode == 'ansi':
+            string = ""
+            for y in range(self.maze.shape[1]):
+                for x in range(self.maze.shape[0]):
+                    contents = self.maze[x, y]
+                    if contents == CellTypes.Empty:
+                        string += " "
+                    elif contents == CellTypes.Wall:
+                        string += "#"
+                    elif contents == CellTypes.Player:
+                        string += "P"
+                    elif contents == CellTypes.Goal:
+                        string += "G"
+                string += "/n"
+            return string
 
-        # randomly place the stopwatch
-        stopwatch_placed = False
-        while not stopwatch_placed:
-            stopwatch_x = random.randrange(0, width, 1)
-            stopwatch_y = random.randrange(0, height, 1)
-            if maze[stopwatch_x, stopwatch_y] == CellTypes.Empty:
-                maze[stopwatch_x, stopwatch_y] = CellTypes.Goal
-                stopwatch_placed = True
+    def step(self, action):
+        self.time += 1
+        if self.time > self.time_limit:
+            reward = 0
+            self.done = True
+            return self.maze, reward, self.done, {}
 
-        return maze
+        player_cell = find_player(self.maze)
+
+        # try to move the player in the direction given
+        move_cell = copy(player_cell)
+        if action == 0:     # left
+            if player_cell[0] > 0:
+                if self.maze[player_cell[0] - 1, player_cell[1]] != CellTypes.Wall:
+                    move_cell[0] -= 1
+
+        if action == 1:     # right
+            if player_cell[0] < self.width:
+                if self.maze[player_cell[0] + 1, player_cell[1]] != CellTypes.Wall:
+                    move_cell[0] += 1
+
+        if action == 2:     # bottom
+            if player_cell[1] > 0:
+                if self.maze[player_cell[0], player_cell[1] - 1] != CellTypes.Wall:
+                    move_cell[1] -= 1
+
+        if action == 3:     # top
+            if player_cell[1] < self.height:
+                if self.maze[player_cell[0], player_cell[1] + 1] != CellTypes.Wall:
+                    move_cell[1] += 1
+
+        reward = 0  # default should never happen
+        if move_cell == player_cell:    # then must have been a false move
+            reward = self.false_move_reward
+        elif self.maze[move_cell[0], move_cell[1]] == CellTypes.Empty:
+            if self.has_stopwatch:
+                reward = self.time_step_reward / self.stopwatch_factor
+            else:
+                reward = self.time_step_reward
+        elif self.maze[move_cell[0], move_cell[1]] == CellTypes.Stopwatch:
+            self.has_stopwatch = True
+            reward = self.time_step_reward / self.stopwatch_factor
+        elif self.maze[move_cell[0], move_cell[1]] == CellTypes.Goal:
+            reward = self.goal_reward
+            
+        return self.maze, reward, self.done, {}
 
 
 class CellTypes(enum.IntEnum):
@@ -111,4 +210,3 @@ class CellTypes(enum.IntEnum):
     Player = 2
     Stopwatch = 3
     Goal = 4
-
