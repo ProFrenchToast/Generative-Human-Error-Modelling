@@ -134,6 +134,7 @@ class TimeMaze(gym.Env):
         self.time = 0
         self.has_stopwatch = False
         self.done = False
+        return self.maze
 
     def render(self, mode='ansi'):
         if mode == 'human':
@@ -157,6 +158,7 @@ class TimeMaze(gym.Env):
             return string
 
     def step(self, action):
+        # todo: Need to add invalid actions
         self.time += 1
         if self.time > self.time_limit:
             reward = 0
