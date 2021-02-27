@@ -113,7 +113,7 @@ class TimeMaze(gym.Env):
         super().__init__(self)
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int)
-        self.seed = seed
+        self.initial_seed = seed
         random.seed(seed)
         self.width = width
         self.height = height

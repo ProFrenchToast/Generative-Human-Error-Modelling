@@ -7,7 +7,7 @@ import gym
 
 
 def generate_rabbit_world(width, height, num_rabbits):
-    world = np.ones(width, height)
+    world = np.ones(width, height) * CellTypes.Empty
     
     # todo: test these random ranges are inclusive or not
     
@@ -81,7 +81,7 @@ class HuntingRabbits(gym.Env):
             "World": gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int),
             "Rabbits_caught": gym.spaces.Box(low=0, high=num_rabbits, dtype=int)
         })
-        self.seed = seed
+        self.initial_seed = seed
         random.seed(seed)
 
         self.width = width
