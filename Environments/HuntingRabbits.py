@@ -162,7 +162,7 @@ class HuntingRabbits(gym.Env):
                     rabbit_list.append((x, y))
 
         for rabbit in rabbit_list:
-            destination = rabbit        #default to not moving
+            destination = rabbit        # default to not moving
 
             # first randomly change the speed of the rabbits
             if random.random() < self.speed_change_prob:
