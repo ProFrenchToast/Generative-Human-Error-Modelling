@@ -1,5 +1,6 @@
 import enum
 import random
+import heapq
 
 import gym
 import perlin_noise
@@ -90,10 +91,23 @@ def find_minotaur(world):
     raise Exception("Error no minotaur found in the world")
 
 
+def octile_distance(start, end):
+    return 0
+
+
+def reconstruct_path(previous_cell_array, current_cell):
+    path = [current_cell]
+    while previous_cell_array[current_cell] != None:
+        current_cell = previous_cell_array[current_cell]
+        path.insert(0, current_cell)
+    return path
+
+
 class StuckInTheMud(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array', 'ansi']}
 
-    def __init__(self, seed=random.getstate(), width=30, height=30, time_limit=200, num_treasure=10, mud_avoidance=2):
+    def __init__(self, seed=random.getstate(), width=30, height=30, time_limit=200, num_treasure=10, mud_avoidance=2,
+                 heuristic=octile_distance):
         super().__init__(self)
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # todo: rearrage into a single array that is stacked when sent for observations
@@ -108,6 +122,7 @@ class StuckInTheMud(gym.Env):
         self.height = height
         self.num_treasure = num_treasure
         self.mud_avoidance = mud_avoidance
+        self.heuristic = heuristic
 
         self.world = generate_world(self.width, self.height, self.num_treasure)
         self.mud_map = generate_mud_map(self.width, self.height)
@@ -205,8 +220,54 @@ class StuckInTheMud(gym.Env):
         raise NotImplementedError
 
     def calculate_minotaur_path(self):
-        # todo: implement the pathfinding for the minotaur given a specific mud avoidance. (likely A* or dijkstras)
-        raise NotImplementedError
+        # use A* search to efficiently search fro the shortest path
+        # in this case we consider each cell of the world to be a node in a graph that is connected to each adjacent
+        # cell with a path cost of 1 in not mud and self.mud_avoidance if mud
+        cell_heap = []
+        heapq.heapify(cell_heap)  # a heap to store the current set of cells that need to be explored
+        previous_cell = []  # a 2d array that contains the previous cell in the shortest path to the given cell
+        cells_in_heap = []  # a 2d array containing if the cell is currently in the heap
+        for x in self.width:
+            for y in self.height:
+                cells_in_heap[x, y] = False
+
+        shortest_path_length = np.ones((self.width, self.height)) * float("inf")
+
+        minotaur_cell = find_minotaur()
+        player_cell = find_player()
+        shortest_path_length[minotaur_cell] = 0
+        adjacent_cells = [(1, 1), (1, 0), (1, -1), (0, 1), (0, -1), (-1, 1), (-1, 0), (-1, -1)]
+
+        # add the start cell to begin with
+        # Note: all items pushed to the heap should be triples of the form (priority, random tie braker, cell)
+        heapq.heappush(cell_heap, (self.heuristic(minotaur_cell, player_cell), random.random(), minotaur_cell))
+        cells_in_heap[minotaur_cell] = True
+        previous_cell[minotaur_cell] = None
+
+        while len(cell_heap) > 0:
+            priority, tie_breaker, current_cell = heapq.heappop(cell_heap)
+            cells_in_heap[current_cell] = False
+            if current_cell == player_cell:
+                return reconstruct_path(previous_cell, player_cell)[0]
+
+            for offset in adjacent_cells:
+                adjacent_cell = (current_cell[0] + offset[0], current_cell[1] + offset[1])
+                if self.world[adjacent_cell] == CellTypes.Wall or self.world[adjacent_cell] == CellTypes.Exit:
+                    continue
+                elif self.mud_map[adjacent_cell] == 1:
+                    potential_path_length = shortest_path_length[current_cell] + self.mud_avoidance
+                else:
+                    potential_path_length = shortest_path_length[current_cell] + 1
+
+                if potential_path_length < shortest_path_length[adjacent_cell]:
+                    previous_cell[adjacent_cell] = current_cell
+                    shortest_path_length[adjacent_cell] = potential_path_length
+                    if not cells_in_heap[adjacent_cell]:
+                        heapq.heappush(cell_heap,
+                                       (self.heuristic(adjacent_cell, player_cell), random.random(), adjacent_cell))
+                        cells_in_heap[adjacent_cell] = True
+
+        raise Exception("Error: No path found to player")
 
 
 class CellTypes(enum.IntEnum):
