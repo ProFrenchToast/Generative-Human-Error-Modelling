@@ -1,4 +1,5 @@
 import enum
+import heapq
 from copy import copy
 
 import random
@@ -17,7 +18,7 @@ def generate_maze(width, height):
     maze[start_x, start_y] = CellTypes.Player
 
     # now randomly build the maze
-    recursive_depth_first_search(maze, (start_x, start_y))
+    random_breath_search(maze, (start_x, start_y))
 
     # randomly place the goal
     goal_placed = False
@@ -34,8 +35,17 @@ def generate_maze(width, height):
         stopwatch_x = random.randrange(0, width, 1)
         stopwatch_y = random.randrange(0, height, 1)
         if maze[stopwatch_x, stopwatch_y] == CellTypes.Empty:
-            maze[stopwatch_x, stopwatch_y] = CellTypes.Goal
+            maze[stopwatch_x, stopwatch_y] = CellTypes.Stopwatch
             stopwatch_placed = True
+
+    # randomly place the player
+    player_placed = False
+    while not player_placed:
+        player_x = random.randrange(0, width, 1)
+        player_y = random.randrange(0, height, 1)
+        if maze[player_x, player_y] == CellTypes.Empty:
+            maze[player_x, player_y] = CellTypes.Player
+            player_placed = True
 
     return maze
 
@@ -52,7 +62,7 @@ def find_adjacent(maze, cell):
 
     right = cell[0] + 1
     if right < width:
-        adjacent_list.append((right, cell[0]))
+        adjacent_list.append((right, cell[1]))
 
     bottom = cell[1] - 1
     if bottom > 0:
@@ -83,6 +93,23 @@ def recursive_depth_first_search(maze, current_cell):
             recursive_depth_first_search(maze, adjacent_wall)
 
 
+def random_breath_search(maze, start_cell):
+    start_adj = find_adjacent(maze, start_cell)
+    wall_heap = []
+    heapq.heapify(wall_heap)
+    for cell in start_adj:
+        heapq.heappush(wall_heap,(random.random(), cell))
+
+    while len(wall_heap) > 0:
+        priority, current_cell = heapq.heappop(wall_heap)
+        safe_to_dig = is_safe_to_dig(maze, current_cell)
+        if safe_to_dig:
+            maze[current_cell[0], current_cell[1]] = CellTypes.Empty
+            current_cell_adj = find_adjacent(maze, current_cell)
+            for cell in current_cell_adj:
+                heapq.heappush(wall_heap, (random.random(), cell))
+
+
 def is_safe_to_dig(maze, potential_dig_cell):
     safe_to_dig = False
     # count the number of adjacent cells that are not walls
@@ -102,7 +129,7 @@ def find_player(maze):
     for x in range(maze.shape[0]):
         for y in range(maze.shape[1]):
             if maze[x, y] == CellTypes.Player:
-                return (x, y)
+                return [x, y]
     raise Exception("Error no player found in the maze")
 
 
@@ -110,7 +137,6 @@ class TimeMaze(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array', 'ansi']}
 
     def __init__(self, seed=random.getstate(), width=30, height=30):
-        super().__init__(self)
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int)
         self.initial_seed = seed
@@ -169,28 +195,28 @@ class TimeMaze(gym.Env):
 
         # try to move the player in the direction given
         move_cell = copy(player_cell)
-        if action == 0:     # left
+        if action == 0:  # left
             if player_cell[0] > 0:
                 if self.maze[player_cell[0] - 1, player_cell[1]] != CellTypes.Wall:
                     move_cell[0] -= 1
 
-        if action == 1:     # right
-            if player_cell[0] < self.width:
+        if action == 1:  # right
+            if player_cell[0] < self.width -1:
                 if self.maze[player_cell[0] + 1, player_cell[1]] != CellTypes.Wall:
                     move_cell[0] += 1
 
-        if action == 2:     # bottom
+        if action == 2:  # bottom
             if player_cell[1] > 0:
                 if self.maze[player_cell[0], player_cell[1] - 1] != CellTypes.Wall:
                     move_cell[1] -= 1
 
-        if action == 3:     # top
-            if player_cell[1] < self.height:
+        if action == 3:  # top
+            if player_cell[1] < self.height -1:
                 if self.maze[player_cell[0], player_cell[1] + 1] != CellTypes.Wall:
                     move_cell[1] += 1
 
         reward = 0  # default should never happen
-        if move_cell == player_cell:    # then must have been a false move
+        if move_cell == player_cell:  # then must have been a false move
             reward = self.false_move_reward
         elif self.maze[move_cell[0], move_cell[1]] == CellTypes.Empty:
             if self.has_stopwatch:
@@ -202,7 +228,7 @@ class TimeMaze(gym.Env):
             reward = self.time_step_reward / self.stopwatch_factor
         elif self.maze[move_cell[0], move_cell[1]] == CellTypes.Goal:
             reward = self.goal_reward
-            
+
         return self.maze, reward, self.done, {}
 
 

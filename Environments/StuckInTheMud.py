@@ -16,7 +16,7 @@ def generate_world(width, height, num_treasure):
         world[x, height - 1] = CellTypes.Wall
     for y in range(height):
         world[0, y] = CellTypes.Wall
-        world[height - 1, y] = CellTypes.Wall
+        world[width - 1, y] = CellTypes.Wall
     exit_side = random.randrange(1, 4, 1)
     exit_cell = (0, 0)
     if exit_side == 1:  # left
@@ -108,10 +108,9 @@ class StuckInTheMud(gym.Env):
 
     def __init__(self, seed=random.getstate(), width=30, height=30, time_limit=200, num_treasure=10, mud_avoidance=2,
                  heuristic=octile_distance):
-        super().__init__(self)
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # todo: rearrage into a single array that is stacked when sent for observations
-        self.observation_space = gym.spaces.dict({
+        self.observation_space = gym.spaces.Dict({
             "World": gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int),
             "Mud_map": gym.spaces.Box(low=0, high=1, shape=(width, height), dtype=int)
         })
@@ -197,7 +196,7 @@ class StuckInTheMud(gym.Env):
                 self.world[minotaur_cell[0], minotaur_cell[1]] = CellTypes.Treasure
                 self.world[minotaur_target_cell[0], minotaur_target_cell[1]] = CellTypes.Minotaur
             else:
-                raise Exception("Minotaur moved into unknown cell ({}, {})".format(minotaur_target_cell))
+                raise Exception("Minotaur moved into unknown cell ({})".format(minotaur_target_cell))
 
             # now check if the next cell mud
             if self.mud_map[minotaur_target_cell[0], minotaur_target_cell[1]] == 1:
@@ -225,16 +224,16 @@ class StuckInTheMud(gym.Env):
         # cell with a path cost of 1 in not mud and self.mud_avoidance if mud
         cell_heap = []
         heapq.heapify(cell_heap)  # a heap to store the current set of cells that need to be explored
-        previous_cell = []  # a 2d array that contains the previous cell in the shortest path to the given cell
-        cells_in_heap = []  # a 2d array containing if the cell is currently in the heap
-        for x in self.width:
-            for y in self.height:
+        previous_cell = np.empty(shape=(self.width, self.height), dtype=object)  # a 2d array that contains the previous cell in the shortest path to the given cell
+        cells_in_heap = np.zeros(shape=(self.width, self.height), dtype=bool)  # a 2d array containing if the cell is currently in the heap
+        for x in range(self.width):
+            for y in range(self.height):
                 cells_in_heap[x, y] = False
 
         shortest_path_length = np.ones((self.width, self.height)) * float("inf")
 
-        minotaur_cell = find_minotaur()
-        player_cell = find_player()
+        minotaur_cell = find_minotaur(world=self.world)
+        player_cell = find_player(world=self.world)
         shortest_path_length[minotaur_cell] = 0
         adjacent_cells = [(1, 1), (1, 0), (1, -1), (0, 1), (0, -1), (-1, 1), (-1, 0), (-1, -1)]
 
@@ -248,7 +247,7 @@ class StuckInTheMud(gym.Env):
             priority, tie_breaker, current_cell = heapq.heappop(cell_heap)
             cells_in_heap[current_cell] = False
             if current_cell == player_cell:
-                return reconstruct_path(previous_cell, player_cell)[0]
+                return reconstruct_path(previous_cell, player_cell)[1]
 
             for offset in adjacent_cells:
                 adjacent_cell = (current_cell[0] + offset[0], current_cell[1] + offset[1])

@@ -7,7 +7,7 @@ import gym
 
 
 def generate_rabbit_world(width, height, num_rabbits):
-    world = np.ones(width, height) * CellTypes.Empty
+    world = np.ones(shape=(width, height), dtype=int) * CellTypes.Empty
     
     # todo: test these random ranges are inclusive or not
     
@@ -18,7 +18,7 @@ def generate_rabbit_world(width, height, num_rabbits):
         
     for y in range(height):
         world[0, y] = CellTypes.Wall
-        world[height-1, y] = CellTypes.Wall
+        world[width-1, y] = CellTypes.Wall
         
     dropoff_side = random.randrange(1, 4, 1)
     dropoff_cell = (0, 0)
@@ -32,10 +32,15 @@ def generate_rabbit_world(width, height, num_rabbits):
         dropoff_cell = (random.randrange(1, width-1, 1), height-1)
         
     world[dropoff_cell[0], dropoff_cell[1]] = CellTypes.DropOff
-    
-    # place player
-    player_cell = (random.randrange(1, width-1, 1), random.randrange(1, height-1, 1))
-    world[player_cell[0], player_cell[1]] = CellTypes.Player
+
+    # randomly place the player
+    player_placed = False
+    while not player_placed:
+        player_x = random.randrange(0, width, 1)
+        player_y = random.randrange(0, height, 1)
+        if world[player_x, player_y] == CellTypes.Empty:
+            world[player_x, player_y] = CellTypes.Player
+            player_placed = True
 
     # place rabbits
     for rabbit in range(num_rabbits):
@@ -48,6 +53,31 @@ def generate_rabbit_world(width, height, num_rabbits):
                 rabbit_placed = True
     
     return world
+
+
+def find_adjacent(world, cell):
+    width = world.shape[0]
+    height = world.shape[1]
+
+    adjacent_list = []
+
+    left = cell[0] - 1
+    if left > 0:
+        adjacent_list.append((left, cell[1]))
+
+    right = cell[0] + 1
+    if right < width:
+        adjacent_list.append((right, cell[1]))
+
+    bottom = cell[1] - 1
+    if bottom > 0:
+        adjacent_list.append((cell[0], bottom))
+
+    top = cell[1] + 1
+    if top < height:
+        adjacent_list.append((cell[0], top))
+
+    return adjacent_list
 
 
 def calc_reward(rabbits_caught):
@@ -75,11 +105,10 @@ class HuntingRabbits(gym.Env):
 
     def __init__(self, seed=random.getstate(), width=30, height=30, num_rabbits=10, speed_change_prob=0.01, sight=5,
                  time_limit=200, sickness_prob=0.1):
-        super().__init__(self)
         self.action_space = gym.spaces.MultiDiscrete([5, 5])
         self.observation_space = gym.spaces.Dict({
             "World": gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int),
-            "Rabbits_caught": gym.spaces.Box(low=0, high=num_rabbits, dtype=int)
+            "Rabbits_caught": gym.spaces.Box(low=0, high=num_rabbits, shape=(1,1), dtype=int)
         })
         self.initial_seed = seed
         random.seed(seed)
@@ -112,6 +141,8 @@ class HuntingRabbits(gym.Env):
             valid_action = False
         elif self.world[target_cell[0], target_cell[1]] == CellTypes.Wall:
             valid_action = False
+        elif self.world[target_cell[0], target_cell[1]] == CellTypes.Player:
+            pass
         elif self.world[target_cell[0], target_cell[1]] == CellTypes.Empty:
             self.world[target_cell[0], target_cell[1]] = CellTypes.Player
             self.world[player_cell[0], player_cell[1]] = CellTypes.Empty
@@ -202,14 +233,19 @@ class HuntingRabbits(gym.Env):
                                 max_dist_from_player = distance_to_player
                                 max_dist_cells = [possible_destination]
                             elif distance_to_player == max_dist_from_player:
-                                max_dist_from_player.append[possible_destination]
+                                max_dist_cells.append(possible_destination)
 
                 # randomly pick from the best cells
                 destination = random.choice(max_dist_cells)
 
             else:
                 # move randomly (player is far away)
-                destination = ((rabbit[0] + random.randrange(-1, 1, 1)), (rabbit[1] + random.randrange(-1, 1, 1)))
+                adjacent_cells = find_adjacent(self.world, rabbit)
+                possible_destination_list = [rabbit]
+                for cell in adjacent_cells:
+                    if self.world[cell[0], cell[1]] == CellTypes.Empty:
+                        possible_destination_list.append(cell)
+                destination = random.choice(possible_destination_list)
 
             rabbit_type = self.world[rabbit[0], rabbit[1]]
             self.world[rabbit[0], rabbit[1]] = CellTypes.Empty
