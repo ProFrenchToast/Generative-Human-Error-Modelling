@@ -98,7 +98,7 @@ def random_breath_search(maze, start_cell):
     wall_heap = []
     heapq.heapify(wall_heap)
     for cell in start_adj:
-        heapq.heappush(wall_heap,(random.random(), cell))
+        heapq.heappush(wall_heap, (random.random(), cell))
 
     while len(wall_heap) > 0:
         priority, current_cell = heapq.heappop(wall_heap)
@@ -131,6 +131,22 @@ def find_player(maze):
             if maze[x, y] == CellTypes.Player:
                 return [x, y]
     raise Exception("Error no player found in the maze")
+
+
+def find_goal(maze):
+    for x in range(maze.shape[0]):
+        for y in range(maze.shape[1]):
+            if maze[x, y] == CellTypes.Goal:
+                return [x, y]
+    raise Exception("Error no goal found in the maze")
+
+
+def find_stopwatch(maze):
+    for x in range(maze.shape[0]):
+        for y in range(maze.shape[1]):
+            if maze[x, y] == CellTypes.Stopwatch:
+                return [x, y]
+    raise Exception("Error no stopwatch found in the maze")
 
 
 class TimeMaze(gym.Env):
@@ -201,7 +217,7 @@ class TimeMaze(gym.Env):
                     move_cell[0] -= 1
 
         if action == 1:  # right
-            if player_cell[0] < self.width -1:
+            if player_cell[0] < self.width - 1:
                 if self.maze[player_cell[0] + 1, player_cell[1]] != CellTypes.Wall:
                     move_cell[0] += 1
 
@@ -211,7 +227,7 @@ class TimeMaze(gym.Env):
                     move_cell[1] -= 1
 
         if action == 3:  # top
-            if player_cell[1] < self.height -1:
+            if player_cell[1] < self.height - 1:
                 if self.maze[player_cell[0], player_cell[1] + 1] != CellTypes.Wall:
                     move_cell[1] += 1
 

@@ -239,7 +239,7 @@ class StuckInTheMud(gym.Env):
 
         # add the start cell to begin with
         # Note: all items pushed to the heap should be triples of the form (priority, random tie braker, cell)
-        heapq.heappush(cell_heap, (self.heuristic(minotaur_cell, player_cell), random.random(), minotaur_cell))
+        heapq.heappush(cell_heap, (0, random.random(), minotaur_cell))
         cells_in_heap[minotaur_cell] = True
         previous_cell[minotaur_cell] = None
 
@@ -263,7 +263,8 @@ class StuckInTheMud(gym.Env):
                     shortest_path_length[adjacent_cell] = potential_path_length
                     if not cells_in_heap[adjacent_cell]:
                         heapq.heappush(cell_heap,
-                                       (self.heuristic(adjacent_cell, player_cell), random.random(), adjacent_cell))
+                                       (self.heuristic(adjacent_cell, player_cell)+ shortest_path_length[adjacent_cell],
+                                        random.random(), adjacent_cell))
                         cells_in_heap[adjacent_cell] = True
 
         raise Exception("Error: No path found to player")
