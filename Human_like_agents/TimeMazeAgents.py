@@ -6,7 +6,7 @@ import numpy as np
 
 def reconstruct_path(previous_cell_array, current_cell):
     path = [current_cell]
-    while previous_cell_array[current_cell] != None:
+    while previous_cell_array[current_cell] is not None:
         current_cell = previous_cell_array[current_cell]
         path.insert(0, current_cell)
     return path
@@ -26,10 +26,10 @@ def djikstras_to_cell(maze, start, end):
     shortest_path_length = np.ones(maze.shape) * float("inf")
 
     shortest_path_length[start] = 0
-    adjacent_cells = [(1, 1), (1, 0), (1, -1), (0, 1), (0, -1), (-1, 1), (-1, 0), (-1, -1)]
+    adjacent_cells = [(-1, 0), (1, 0), (0, -1), (0, 1)]       # left, right, bottom, top in order
 
     # add the start cell to begin with
-    # Note: all items pushed to the heap should be triples of the form (priority, random tie braker, cell)
+    # Note: all items pushed to the heap should be triples of the form (priority, random tie breaker, cell)
     heapq.heappush(cell_heap, (0, random.random(), start))
     cells_in_heap[start] = True
     previous_cell[start] = None
@@ -106,7 +106,7 @@ class PrioritiseGoalAgent(Agent):
 
     def act(self, observation, reward, done):
         if not done:
-            if self.next_cell_index < len(self.path)
+            if self.next_cell_index < len(self.path):
                 next_cell = self.path[self.next_cell_index]
                 current_cell = self.path[self.next_cell_index - 1]
                 action = convert_to_action(current_cell, next_cell)
@@ -122,7 +122,7 @@ class PrioritiseStopwatchAgent(Agent):
         stopwatch_cell = find_stopwatch(env.maze)
         self.has_stopwatch = False
         self.path_to_stopwatch = djikstras_to_cell(env.maze, find_player(env.maze), stopwatch_cell)
-        self.path_to_goal = djikstras_to_cell(env.maz, stopwatch_cell, find_goal(env.maze))
+        self.path_to_goal = djikstras_to_cell(env.maze, stopwatch_cell, find_goal(env.maze))
         self.next_cell_index = 1
 
     def act(self, observation, reward, done):
