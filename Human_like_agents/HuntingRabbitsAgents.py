@@ -8,23 +8,80 @@ import numpy as np
 
 
 def pick_target_rabbit(world):
-    raise NotImplementedError
-    return (0, 0)
+    rabbit_list = find_all_rabbits(world)
+    player_cell = find_player(world)
+
+    slowest_speed = float("inf")
+    min_distance_to_player = float("inf")
+    current_target_rabbit = None
+    for rabbit_cell, rabbit_speed in rabbit_list:
+        if rabbit_speed < slowest_speed:
+            slowest_speed = rabbit_speed
+            current_target_rabbit = rabbit_cell
+            min_distance_to_player = min(abs(player_cell[0] - rabbit_cell[0]),
+                                         abs(player_cell[1] - rabbit_cell[1]))
+        elif rabbit_speed == slowest_speed:
+            rabbit_dist_to_player = min(abs(player_cell[0] - rabbit_cell[0]),
+                                        abs(player_cell[1] - rabbit_cell[1]))
+            if rabbit_dist_to_player < min_distance_to_player:
+                current_target_rabbit = rabbit_cell
+                min_distance_to_player = rabbit_dist_to_player
+
+    if current_target_rabbit is not None:
+        return current_target_rabbit
+    else:
+        raise Exception("Error finding rabbit to target, no rabbits found")
 
 
-def pick_target_bitten(observation):
-    raise NotImplementedError
-    return (1, 1)
+def pick_target_bitten(world):
+    rabbit_list = find_all_rabbits(world)
+    player_cell = find_player(world)
+
+    slowest_speed = float("inf")
+    min_distance_to_player = float("inf")
+    current_target_rabbit = None
+    for rabbit_cell, rabbit_speed in rabbit_list:
+        if rabbit_speed != 1:                   # ignore all "sick" rabbits
+            if rabbit_speed < slowest_speed:
+                slowest_speed = rabbit_speed
+                current_target_rabbit = rabbit_cell
+                min_distance_to_player = min(abs(player_cell[0] - rabbit_cell[0]),
+                                             abs(player_cell[1] - rabbit_cell[1]))
+            elif rabbit_speed == slowest_speed:
+                rabbit_dist_to_player = min(abs(player_cell[0] - rabbit_cell[0]),
+                                            abs(player_cell[1] - rabbit_cell[1]))
+                if rabbit_dist_to_player < min_distance_to_player:
+                    current_target_rabbit = rabbit_cell
+                    min_distance_to_player = rabbit_dist_to_player
+
+    if current_target_rabbit is not None:
+        return current_target_rabbit
+    else:
+        raise Exception("Error finding rabbit to target, no rabbits found or all rabbits are sick")
 
 
 def find_speed(cell_value):
-    raise NotImplementedError
-    return 1
+    speed = None
+    if cell_value == CellTypes.Rabbit_1:
+        speed = 1
+    elif cell_value == CellTypes.Rabbit_2:
+        speed = 2
+    elif cell_value == CellTypes.Rabbit_3:
+        speed = 3
+
+    return speed
 
 
 def find_all_rabbits(world):
-    raise NotImplementedError
-    return [((0, 0), 0), ((1, 1), 1)]
+    rabbit_list = []
+    for x in range(world.shape[0]):
+        for y in range(world.shape[1]):
+            speed = find_speed(world[x, y])
+
+            if speed is not None:
+                rabbit_list.append(((x, y), speed))
+
+    return rabbit_list
 
 
 def move_to_cell(current_cell, target_cell):
@@ -42,12 +99,27 @@ class HuntingRabbitsAgent(Agent, ABC):
         self.previous_rabbits = find_all_rabbits(env.world)
 
     def target_rabbit_is_caught(self):
-        return False
+        new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
+        if new_target_rabbit_cell is None:      # caught
+            return True
+        else:                                   # not caught
+            return False
 
     def target_rabbit_speed_up(self, observation):
-        return False
+        new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
+        new_target_rabbit_speed = find_speed(observation[new_target_rabbit_cell])
+        if new_target_rabbit_speed > self.target_rabbit_speed:
+            return True
+        else:
+            return False
 
     def non_target_rabbit_slowed_down(self, observation):
+        for previous_cell, previous_speed in self.previous_rabbits:
+            new_cell = self.env.new_rabbit_cells[previous_cell]
+            new_speed = find_speed(observation[new_cell])
+            if new_speed < previous_speed:
+                return True
+
         return False
 
 
