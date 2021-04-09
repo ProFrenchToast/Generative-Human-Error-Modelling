@@ -1,0 +1,48 @@
+This file contains the details of the setup for this experiment, please use for format below.
+
+// experiment admin
+Experiment title: template example name
+Repeat number:
+Date:
+
+
+// environment
+Environment: envName
+arguments:
+    arg1: argExample1
+    arg2: argExample2
+    ...
+
+
+// demonstrations
+Agents used:
+    agent1: agent1 class name
+    agent2: agent2 class name
+    ...
+Demos per agent: 10
+Seed: 0
+Labeling method: error_exampleMethod()
+
+
+// generator
+Generator structure:
+    // use torch summary(https://github.com/sksq96/pytorch-summary) or keras model.summary()
+
+Learning rate: gen lr
+Loss function: gen lf
+optimiser: gen optim
+Input: (error vector, state)
+
+// discriminator
+Discriminator structure:
+    // use torch summary(https://github.com/sksq96/pytorch-summary) or keras model.summary()
+Learning rate: dis lr
+Loss function: dis lf
+optimiser: dis optim
+Input: (error vector, state, action)
+
+
+// training
+Training method: example method (1 to 1, worse first) // need to research best ways to avoid model collapse
+Gen training steps:
+Dis training steps:

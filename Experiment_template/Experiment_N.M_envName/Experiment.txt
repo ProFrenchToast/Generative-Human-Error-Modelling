@@ -1,0 +1,9 @@
+This file contains the details about the experiment conducted using the generator and discriminator after being trained.
+
+Experiment title: template example name
+Repeat number:
+Date:
+
+method:     // a full description of how the experiment was conducted
+    (example) the generator was run 100 times in the environment with random initial seeds. the generator was given a
+    specific error vector as input and the average accuracy, simmilarity and discriminator accuracy was recorded.
