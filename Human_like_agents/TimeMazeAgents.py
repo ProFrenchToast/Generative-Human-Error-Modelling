@@ -1,4 +1,4 @@
-from BaseAgent import Agent
+from Utils.BaseAgent import Agent
 from Environments.TimeMaze import *
 
 import numpy as np

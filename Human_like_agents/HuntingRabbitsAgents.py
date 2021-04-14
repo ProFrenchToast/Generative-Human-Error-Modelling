@@ -1,7 +1,6 @@
-import heapq
 from abc import ABC
 
-from BaseAgent import Agent
+from Utils.BaseAgent import Agent
 from Environments.HuntingRabbits import *
 
 import numpy as np

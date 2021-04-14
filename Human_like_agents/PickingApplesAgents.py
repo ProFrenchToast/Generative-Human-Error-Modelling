@@ -1,4 +1,4 @@
-from BaseAgent import Agent
+from Utils.BaseAgent import Agent
 
 import numpy as np
 

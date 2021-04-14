@@ -1,80 +1,76 @@
 import pickle
 
-
-def error_inverse_reward(demonstrations, env, agent_classes, episodes):
-    min_value = 1
-    max_reward = float("-inf")
-
-    for demonstration, reward in demonstrations:
-        if reward > max_reward:
-            max_reward = reward
-
-    labels = []
-    coefficient = max_reward * min_value
-
-    for demonstration, reward in demonstrations:
-        label = coefficient / abs(reward)
-        labels.append(label)
-
-    return labels
+from Models.BaseModels import BaseGenerator
+from Utils.BaseAgent import AgentWrapper
+from Utils.ErrorVector import BaseErrorVectorGen
 
 
-def get_optimal_agent(env):
-    raise NotImplementedError
+def generate_demonstration(env, agent):
+    # things to record
+    current_demonstration = []  # a list containing a tuple (state, action, reward) for each timestep
+    total_reward = 0
+
+    # things for agent
+    current_state = env.reset()
+    current_reward = 0
+    done = False
+    agent.reset(env)
+
+    # run the demo
+    while not done:
+        action = agent.act(current_state, current_reward, done)
+        current_demonstration.append((current_state, action, current_reward))
+
+        current_state, current_reward, done = env.step(action)
+        total_reward += current_reward
+
+    return current_demonstration, total_reward
 
 
-def error_difference_from_optimal(demonstrations, env, agent_classes, episodes):
-    # todo: need to finish and make multi dimensional
-    labels = []
-    for demonstration, reward in demonstrations:
-        current_label = 0
-        optimal_agent = get_optimal_agent(env)
+def generate_fake_demos(env, generator, error_vector_gen, mini_batch_size):
+    assert isinstance(generator, BaseGenerator)
+    assert isinstance(error_vector_gen, BaseErrorVectorGen)
 
-        for state, action, reward in demonstration:
-            optimal_agent_instance = optimal_agent(env)
-            optimal_action = optimal_agent_instance.act(state, reward, False)
-            if action != optimal_action:
-                current_label += 1
+    number_samples_generated = 0
+    fake_demos = []
 
-        labels.append(current_label)
+    while number_samples_generated < mini_batch_size:
+        current_error_vector = error_vector_gen.generate()
+        wrapped_gen = AgentWrapper(env, generator, current_error_vector)
+        fake_demonstration, fake_total_reward = generate_demonstration(env, wrapped_gen)
+        fake_demos.append((fake_demonstration, fake_total_reward, current_error_vector))
+        number_samples_generated += len(fake_demonstration)
 
-    return labels
+    return fake_demos
 
 
-def generate_demonstration(env, agent_classes, episodes):
+def generate_demonstrations_from_classes(env, agent_classes, episodes):
     assert len(agent_classes) == len(episodes)
     demonstrations = []  # a list that contains a tuples (demonstration, total_reward)
     for agent_index in range(len(agent_classes)):
         for demo in range(episodes[agent_index]):
-            # things to record
-            current_demonstration = []  # a list containing a tuple (state, action, reward) for each timestep
-            total_reward = 0
-
-            # things for agent
-            current_state = env.reset()
-            current_reward = 0
-            done = False
             agent = agent_classes[agent_index](env)
-
-            # run the demo
-            while not done:
-                action = agent.act(current_state, current_reward, done)
-                current_demonstration.append((current_state, action, current_reward))
-
-                current_state, current_reward, done = env.step(action)
-                total_reward += current_reward
-
-            demonstrations.append((current_demonstration, total_reward))
+            demonstrations.append(generate_demonstration(env, agent))
 
     return demonstrations
 
 
+def combine_errors_and_demos(demonstrations, error_labels):
+    assert len(demonstrations) == len(error_labels)
+
+    combined = []
+    for index in range(len(demonstrations)):
+        current_demo, current_total_reward = demonstrations[index]
+        combined.append((current_demo, current_total_reward, error_labels[index]))
+
+    return combined
+
+
 def generate_and_save_demos(env, agent_classes, episodes, error_function, save_path):
-    demonstrations = generate_demonstration(env, agent_classes, episodes)
+    demonstrations = generate_demonstrations_from_classes(env, agent_classes, episodes)
     print("finished generating demonstrations")
     error_labels = error_function(demonstrations, env, agent_classes, episodes)
-    result = {
-        'Demonstrations': demonstrations,
-        'Error_labels': error_labels
-    }
-    pickle.dump(result, open(save_path, "wb"))
+    combined_demonstrations = combine_errors_and_demos(demonstrations, error_labels)
+    pickle.dump(combined_demonstrations, open(save_path, "wb"))
+
+
