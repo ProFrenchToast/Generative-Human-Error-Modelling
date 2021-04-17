@@ -17,3 +17,5 @@ torch==1.7.1
 tqdm==4.56.2
 typing-extensions==3.7.4.3
 zmq==0.0.0
+
+opencv-python~=4.5.1.48
