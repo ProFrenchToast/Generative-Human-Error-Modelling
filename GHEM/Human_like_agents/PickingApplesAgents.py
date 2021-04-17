@@ -1,13 +1,16 @@
-from Utils.BaseAgent import Agent
+from GHEM.Utils.BaseAgent import Agent
 
 import numpy as np
 
 
-from Environments.PickingApples import PickingApplesBase
+from GHEM.Environments.PickingApples import PickingApplesBase
 
 
 class AssumeOptimalAgent(Agent):
     def __init__(self, env):
+        self.env = env
+
+    def reset(self, env):
         self.env = env
 
     def act(self, observation, reward, done):
@@ -36,6 +39,9 @@ class AssumeSubOptimalAgent(Agent):
     def __init__(self, env):
         self.env = env
 
+    def reset(self, env):
+        self.env = env
+
     def act(self, observation, reward, done):
         # todo: need to check if this is the correct policy for suboptimal agents
         apple_list = observation['Apples']
@@ -57,6 +63,9 @@ class AssumeSubOptimalAgent(Agent):
 class PerfectAgent(Agent):
     def __init__(self, env):
         assert isinstance(env, PickingApplesBase)
+        self.env = env
+
+    def reset(self, env):
         self.env = env
 
     def act(self, observation, reward, done):

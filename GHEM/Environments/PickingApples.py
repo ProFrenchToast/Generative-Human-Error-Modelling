@@ -83,7 +83,7 @@ def worst_druid(apples, magic, max_magic):
 
 
 class PickingApplesBase(gym.Env, ABC):
-    metadata = {'render.modes': ['human', 'rgb_array', 'ansi']}
+    metadata = {'render.modes': ['human', 'ansi']}
     possible_druid_policies = [('optimal', optimal_druid), ('assumes_has_magic', assumes_has_magic_druid),
                                ('assumes_no_magic', assumes_no_magic_druid), ('worst', worst_druid)]
 
@@ -103,7 +103,7 @@ class PickingApplesBase(gym.Env, ABC):
         self.time = 0
         self.done = False
 
-        self.druid_take_action = optimal_druid()    # just a default
+        self.druid_take_action = optimal_druid    # just a default
         self.policy_name = 'optimal'
         self.set_druid_policy()
         self.current_apples = np.zeros(self.num_apples, dtype=float)
@@ -130,14 +130,14 @@ class PickingApplesBase(gym.Env, ABC):
 
     def reset(self):
         self.time = 0
-        self.druid_take_action = self.generate_druid_policy()
+        self.set_druid_policy()
         self.done = False
         return self.get_obs()
 
     def get_obs(self):
         apple_list = []
         for i in range(self.num_apples):
-            apple_list.append(random.randrange(0, self.max_apple_value, 0.01))
+            apple_list.append(random.uniform(0, self.max_apple_value))
 
         apple_list.sort(reverse=True)
         self.current_apples = np.asarray(apple_list)
@@ -156,7 +156,9 @@ class PickingApplesBase(gym.Env, ABC):
         raise NotImplementedError
 
     def set_druid_policy(self):
-        policy_name, policy = random.choice(self.possible_druid_policies)
+        policy_tuple = random.choice(self.possible_druid_policies)
+        policy_name = policy_tuple[0]
+        policy = policy_tuple[1]
         self.policy_name = policy_name
         self.druid_take_action = policy
 

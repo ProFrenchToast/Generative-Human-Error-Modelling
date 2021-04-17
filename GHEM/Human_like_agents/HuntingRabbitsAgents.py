@@ -1,7 +1,7 @@
 from abc import ABC
 
-from Utils.BaseAgent import Agent
-from Environments.HuntingRabbits import *
+from GHEM.Utils.BaseAgent import Agent
+from GHEM.Environments.HuntingRabbits import *
 
 import numpy as np
 
@@ -96,6 +96,9 @@ class HuntingRabbitsAgent(Agent, ABC):
         self.target_rabbit_cell = pick_target_rabbit(env.world)
         self.target_rabbit_speed = find_speed(env.world[self.target_rabbit_cell])
         self.previous_rabbits = find_all_rabbits(env.world)
+
+    def reset(self, env):
+        self.__init__(env)
 
     def target_rabbit_is_caught(self):
         new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]

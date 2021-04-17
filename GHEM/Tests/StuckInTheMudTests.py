@@ -1,6 +1,4 @@
-import unittest
-
-from Environments.HuntingRabbits import *
+from GHEM.Environments.StuckInTheMud import *
 
 
 def test_random_rollouts():
@@ -12,7 +10,7 @@ def test_random_rollouts():
     for i in range(num_iterations):
         maze_width = random.randrange(size_lower_bound, size_upper_bound, 1)
         maze_height = random.randrange(size_lower_bound, size_upper_bound, 1)
-        env = HuntingRabbits(width=maze_width, height=maze_height)
+        env = StuckInTheMud(width=maze_width, height=maze_height)
         obs_space = env.observation_space
 
         done = False

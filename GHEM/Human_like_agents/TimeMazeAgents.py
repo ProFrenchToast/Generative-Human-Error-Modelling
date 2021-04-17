@@ -1,5 +1,5 @@
-from Utils.BaseAgent import Agent
-from Environments.TimeMaze import *
+from GHEM.Utils.BaseAgent import Agent
+from GHEM.Environments.TimeMaze import *
 
 import numpy as np
 
@@ -72,6 +72,11 @@ class GeneralDirectionAgent(Agent):
         self.env = env
         self.previous_cell = np.array(shape=(env.width, env.height), dtype=object)
 
+    def reset(self, env):
+        assert isinstance(env, TimeMaze)
+        self.env = env
+        self.previous_cell = np.array(shape=(env.width, env.height), dtype=object)
+
     def act(self, observation, reward, done):
         if not done:
             player_cell = find_player(observation)
@@ -100,7 +105,11 @@ class PrioritiseGoalAgent(Agent):
 
     def __init__(self, env):
         assert isinstance(env, TimeMaze)
-        goal_cell = find_goal(env.maze)
+        self.path = djikstras_to_cell(env.maze, find_player(env.maze), find_goal(env.maze))
+        self.next_cell_index = 1
+
+    def reset(self, env):
+        assert isinstance(env, TimeMaze)
         self.path = djikstras_to_cell(env.maze, find_player(env.maze), find_goal(env.maze))
         self.next_cell_index = 1
 
@@ -118,7 +127,14 @@ class PrioritiseStopwatchAgent(Agent):
 
     def __init__(self, env):
         assert isinstance(env, TimeMaze)
-        goal_cell = find_goal(env.maze)
+        stopwatch_cell = find_stopwatch(env.maze)
+        self.has_stopwatch = False
+        self.path_to_stopwatch = djikstras_to_cell(env.maze, find_player(env.maze), stopwatch_cell)
+        self.path_to_goal = djikstras_to_cell(env.maze, stopwatch_cell, find_goal(env.maze))
+        self.next_cell_index = 1
+
+    def reset(self, env):
+        assert isinstance(env, TimeMaze)
         stopwatch_cell = find_stopwatch(env.maze)
         self.has_stopwatch = False
         self.path_to_stopwatch = djikstras_to_cell(env.maze, find_player(env.maze), stopwatch_cell)

@@ -1,6 +1,6 @@
-from Models.BaseModels import BaseGenerator, BaseDiscriminator
-from Utils.ErrorVector import BaseErrorVectorGen
-from Utils.GenerateDemos import generate_fake_demos
+from GHEM.Models.BaseModels import BaseGenerator, BaseDiscriminator
+from GHEM.Utils.ErrorVector import BaseErrorVectorGen
+from GHEM.Utils.GenerateDemos import generate_fake_demos
 
 
 def fixed_alternation_training(epochs, demonstrations, error_vector_gen, generator, discriminator, gen_optim, disc_optim

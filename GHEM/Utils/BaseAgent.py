@@ -21,7 +21,7 @@ class RandomAgent(Agent):
         return self.action_space.sample()
 
     def reset(self, env):
-        pass
+        self.action_space = env.action_space
 
 
 class AgentWrapper(Agent):

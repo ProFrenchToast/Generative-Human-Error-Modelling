@@ -1,8 +1,8 @@
 import pickle
 
-from Models.BaseModels import BaseGenerator
-from Utils.BaseAgent import AgentWrapper
-from Utils.ErrorVector import BaseErrorVectorGen
+from GHEM.Models.BaseModels import BaseGenerator
+from GHEM.Utils.BaseAgent import AgentWrapper
+from GHEM.Utils.ErrorVector import BaseErrorVectorGen
 
 
 def generate_demonstration(env, agent):
