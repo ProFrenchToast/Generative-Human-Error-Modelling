@@ -7,6 +7,16 @@ import random
 import numpy as np
 import gym
 
+from GHEM.Utils.Rendering import Grid2DRenderer
+
+
+class CellTypes(enum.IntEnum):
+    Empty = 0
+    Wall = 1
+    Player = 2
+    Stopwatch = 3
+    Goal = 4
+
 
 def generate_maze(width, height):
     maze = np.ones((width, height), dtype=int)
@@ -150,13 +160,21 @@ def find_stopwatch(maze):
 
 
 class TimeMaze(gym.Env):
-    metadata = {'render.modes': ['human', 'rgb_array', 'ansi']}
+    metadata = {'render.modes': ['human', 'rgb_array', 'ansi'],
+                'cell colours': {CellTypes.Empty: (255, 255, 255),  # white
+                                 CellTypes.Wall: (100, 100, 100),  # grey
+                                 CellTypes.Goal: (0, 255, 0),  # green
+                                 CellTypes.Player: (0, 0, 255),  # red
+                                 CellTypes.Stopwatch: (255, 0, 0)  # blue
+                                 }
+                }
 
-    def __init__(self, seed=random.getstate(), width=30, height=30):
+    def __init__(self, seed=None, width=30, height=30):
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int)
         self.initial_seed = seed
-        random.seed(seed)
+        if seed is not None:
+            random.seed(seed)
         self.width = width
         self.height = height
 
@@ -171,6 +189,9 @@ class TimeMaze(gym.Env):
         self.stopwatch_factor = 2
         self.time_limit = 200
 
+        self.renderer = None
+        self.window_name = "TimeMaze ({} by {})".format(self.width, self.height)
+
     def reset(self):
         self.maze = generate_maze(self.width, self.height)
         self.time = 0
@@ -179,10 +200,27 @@ class TimeMaze(gym.Env):
         return self.maze
 
     def render(self, mode='ansi'):
+        if self.renderer is None:
+            self.renderer = Grid2DRenderer(self.window_name, self.width, self.height)
+
         if mode == 'human':
-            raise NotImplementedError
+            # set the colour for each grid cell
+            for x in range(self.width):
+                for y in range(self.height):
+                    cell_contents = self.maze[x, y]
+                    cell_colour = self.metadata['cell colours'][cell_contents]
+                    self.renderer.set_cell_colour(x, y, cell_colour)
+            # render to the screen
+            self.renderer.render()
         elif mode == 'rgb_array':
-            raise NotImplementedError
+            # set the colour for each grid cell
+            for x in range(self.width):
+                for y in range(self.height):
+                    cell_contents = self.maze[x, y]
+                    cell_colour = self.metadata['cell colours'][cell_contents]
+                    self.renderer.set_cell_colour(x, y, cell_colour)
+
+            return self.renderer.get_rgb_array()
         elif mode == 'ansi':
             string = ""
             for y in range(self.maze.shape[1]):
@@ -196,7 +234,9 @@ class TimeMaze(gym.Env):
                         string += "P"
                     elif contents == CellTypes.Goal:
                         string += "G"
-                string += "/n"
+                    elif contents == CellTypes.Stopwatch:
+                        string += "S"
+                string += "\n"
             return string
 
     def step(self, action):
@@ -244,13 +284,9 @@ class TimeMaze(gym.Env):
             reward = self.time_step_reward / self.stopwatch_factor
         elif self.maze[move_cell[0], move_cell[1]] == CellTypes.Goal:
             reward = self.goal_reward
+            self.done = True
+
+        self.maze[player_cell[0], player_cell[1]] = CellTypes.Empty
+        self.maze[move_cell[0], move_cell[1]] = CellTypes.Player
 
         return self.maze, reward, self.done, {}
-
-
-class CellTypes(enum.IntEnum):
-    Empty = 0
-    Wall = 1
-    Player = 2
-    Stopwatch = 3
-    Goal = 4
