@@ -6,8 +6,8 @@ import numpy as np
 
 def reconstruct_path(previous_cell_array, current_cell):
     path = [current_cell]
-    while previous_cell_array[current_cell] is not None:
-        current_cell = previous_cell_array[current_cell]
+    while previous_cell_array[current_cell[0], current_cell[1]] is not None:
+        current_cell = previous_cell_array[current_cell[0], current_cell[1]]
         path.insert(0, current_cell)
     return path
 
@@ -25,35 +25,34 @@ def djikstras_to_cell(maze, start, end):
 
     shortest_path_length = np.ones(maze.shape) * float("inf")
 
-    shortest_path_length[start] = 0
+    shortest_path_length[start[0], start[1]] = 0
     adjacent_cells = [(-1, 0), (1, 0), (0, -1), (0, 1)]       # left, right, bottom, top in order
 
     # add the start cell to begin with
     # Note: all items pushed to the heap should be triples of the form (priority, random tie breaker, cell)
     heapq.heappush(cell_heap, (0, random.random(), start))
-    cells_in_heap[start] = True
-    previous_cell[start] = None
+    cells_in_heap[start[0], start[1]] = True
+    previous_cell[start[0], start[1]] = None
 
     while len(cell_heap) > 0:
         priority, tie_breaker, current_cell = heapq.heappop(cell_heap)
-        cells_in_heap[current_cell] = False
-        if current_cell == end:
+        cells_in_heap[current_cell[0], current_cell[1]] = False
+        if current_cell == tuple(end):
             return reconstruct_path(previous_cell, end)
 
-        for offset in adjacent_cells:
-            adjacent_cell = (current_cell[0] + offset[0], current_cell[1] + offset[1])
-            if maze[adjacent_cell] == CellTypes.Wall:
+        for adjacent_cell in find_adjacent(maze, current_cell):
+            if maze[adjacent_cell[0], adjacent_cell[1]] == CellTypes.Wall:
                 continue
             else:
-                potential_path_length = shortest_path_length[current_cell] + 1
+                potential_path_length = shortest_path_length[current_cell[0], current_cell[1]] + 1
 
-            if potential_path_length < shortest_path_length[adjacent_cell]:
-                previous_cell[adjacent_cell] = current_cell
-                shortest_path_length[adjacent_cell] = potential_path_length
-                if not cells_in_heap[adjacent_cell]:
+            if potential_path_length < shortest_path_length[adjacent_cell[0], adjacent_cell[1]]:
+                previous_cell[adjacent_cell[0], adjacent_cell[1]] = current_cell
+                shortest_path_length[adjacent_cell[0], adjacent_cell[1]] = potential_path_length
+                if not cells_in_heap[adjacent_cell[0], adjacent_cell[1]]:
                     heapq.heappush(cell_heap,
-                                   (shortest_path_length[adjacent_cell], random.random(), adjacent_cell))
-                    cells_in_heap[adjacent_cell] = True
+                                   (shortest_path_length[adjacent_cell[0], adjacent_cell[1]], random.random(), adjacent_cell))
+                    cells_in_heap[adjacent_cell[0], adjacent_cell[1]] = True
 
     raise Exception("Error: No path found to {} found".format(end))
 
@@ -70,12 +69,12 @@ class GeneralDirectionAgent(Agent):
     def __init__(self, env):
         assert isinstance(env, TimeMaze)
         self.env = env
-        self.previous_cell = np.array(shape=(env.width, env.height), dtype=object)
+        self.previous_cell = np.empty(shape=(env.width, env.height), dtype=object)
 
     def reset(self, env):
         assert isinstance(env, TimeMaze)
         self.env = env
-        self.previous_cell = np.array(shape=(env.width, env.height), dtype=object)
+        self.previous_cell = np.empty(shape=(env.width, env.height), dtype=object)
 
     def act(self, observation, reward, done):
         if not done:
@@ -84,11 +83,11 @@ class GeneralDirectionAgent(Agent):
             potential_paths = []
 
             for cell in adj_cells:
-                if observation[cell] == CellTypes.Empty:
-                    if self.previous_cell[cell] is None:
+                if observation[cell[0], cell[1]] == CellTypes.Empty:
+                    if self.previous_cell[cell[0], cell[1]] is None:
                         potential_paths.append(cell)
 
-            action_cell = self.previous_cell[player_cell]
+            action_cell = None
             current_min_distance = float("inf")
             goal_cell = find_goal(observation)
             for cell in potential_paths:
@@ -96,6 +95,11 @@ class GeneralDirectionAgent(Agent):
                 if distance_to_goal < current_min_distance:
                     current_min_distance = distance_to_goal
                     action_cell = cell
+
+            if action_cell is None:
+                action_cell = self.previous_cell[player_cell[0], player_cell[1]]
+            else:
+                self.previous_cell[action_cell[0], action_cell[1]] = player_cell
 
             action = convert_to_action(player_cell, action_cell)
             return action
@@ -149,7 +153,7 @@ class PrioritiseStopwatchAgent(Agent):
                 action = convert_to_action(current_cell, next_cell)
                 self.next_cell_index += 1
 
-                if observation[next_cell] == CellTypes.Stopwatch:
+                if observation[next_cell[0], next_cell[1]] == CellTypes.Stopwatch:
                     self.has_stopwatch = True
                     self.next_cell_index = 1
                 return action
