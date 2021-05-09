@@ -59,5 +59,5 @@ def test_human_rendering():
 
 
 if __name__ == '__main__':
-    #test_random_rollouts()
+    test_random_rollouts()
     test_human_rendering()

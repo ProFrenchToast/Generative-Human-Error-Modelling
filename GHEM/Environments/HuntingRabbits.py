@@ -5,6 +5,18 @@ import random
 import numpy as np
 import gym
 
+from GHEM.Utils.Rendering import Grid2DRenderer
+
+
+class CellTypes(enum.IntEnum):
+    Empty = 0
+    Wall = 1
+    Player = 2
+    DropOff = 3
+    Rabbit_1 = 4
+    Rabbit_2 = 5
+    Rabbit_3 = 6
+
 
 def generate_rabbit_world(width, height, num_rabbits):
     world = np.ones(shape=(width, height), dtype=int) * CellTypes.Empty
@@ -100,12 +112,30 @@ def find_player(world):
     raise Exception("Error no player found in the world")
 
 
+def find_dropoff(world):
+    for x in range(world.shape[0]):
+        for y in range(world.shape[1]):
+            if world[x, y] == CellTypes.DropOff:
+                return (x, y)
+    raise Exception("Error no dropoff found in the world")
+
+
 class HuntingRabbits(gym.Env):
-    metadata = {'render.modes': ['human', 'rgb_array', 'ansi']}
+    metadata = {'render.modes': ['human', 'rgb_array', 'ansi'],
+                'cell colours': {CellTypes.Empty: (255, 255, 255),      # white
+                                 CellTypes.Wall: (100, 100, 100),       # grey
+                                 CellTypes.DropOff: (0, 255, 0),        # green
+                                 CellTypes.Player: (0, 0, 255),         # red
+                                 CellTypes.Rabbit_1: (69, 46, 114),     # dark pink
+                                 CellTypes.Rabbit_2: (101, 67, 168),    # pink
+                                 CellTypes.Rabbit_3: (130, 68, 255)     # bright pink
+                                 }
+                }
 
     def __init__(self, seed=random.getstate(), width=30, height=30, num_rabbits=10, speed_change_prob=0.01, sight=5,
-                 time_limit=200, sickness_prob=0.1):
-        self.action_space = gym.spaces.MultiDiscrete([5, 5])
+                 time_limit=200, sickness_prob=0.1, player_speed=2):
+        self.player_speed = player_speed
+        self.action_space = gym.spaces.MultiDiscrete([(player_speed * 2) + 1, (player_speed * 2) + 1])
         self.observation_space = gym.spaces.Dict({
             "World": gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int),
             "Rabbits_caught": gym.spaces.Box(low=0, high=num_rabbits, shape=(1,1), dtype=int)
@@ -120,11 +150,16 @@ class HuntingRabbits(gym.Env):
         self.speed_change_prob = speed_change_prob
         self.rabbit_sight = sight
 
+        self.new_rabbit_cells = np.empty(shape=(self.width, self.height), dtype=object)
+
         self.world = generate_rabbit_world(width, height, num_rabbits)
         self.rabbits_caught = 0
         self.time = 0
         self.time_limit = time_limit
         self.done = False
+
+        self.renderer = None
+        self.window_name = "HuntingRabbits ({} by {})".format(self.width, self.height)
 
     def step(self, action):
         self.time += 1
@@ -135,7 +170,8 @@ class HuntingRabbits(gym.Env):
         valid_action = True
         player_cell = find_player(self.world)
 
-        target_cell = ((player_cell[0] + action[0]), (player_cell[1] + action[1]))
+        target_cell = ((player_cell[0] + (action[0] - self.player_speed)),
+                       (player_cell[1] + (action[1] - self.player_speed)))
 
         if target_cell[0] < 0 or target_cell[0] >= self.width or target_cell[1] < 0 or target_cell[1] >= self.height:
             valid_action = False
@@ -156,10 +192,12 @@ class HuntingRabbits(gym.Env):
                 self.rabbits_caught += 1
             self.world[target_cell[0], target_cell[1]] = CellTypes.Player
             self.world[player_cell[0], player_cell[1]] = CellTypes.Empty
+            reward = 100
         else:  # any other type of rabbit
             self.rabbits_caught += 1
             self.world[target_cell[0], target_cell[1]] = CellTypes.Player
             self.world[player_cell[0], player_cell[1]] = CellTypes.Empty
+            reward = 100
             
         self.move_rabbits()
 
@@ -175,22 +213,69 @@ class HuntingRabbits(gym.Env):
         self.time = 0
         self.done = False
         self.world = generate_rabbit_world(self.width, self.height, self.num_rabbits)
+        self.new_rabbit_cells = np.empty(shape=(self.width, self.height), dtype=object)
         self.rabbits_caught = 0
         return {
             "World": self.world,
             "Rabbits_caught": self.rabbits_caught
         }
 
-    def render(self, mode='human'):
-        raise NotImplementedError
+    def render(self, mode='ansi'):
+        if self.renderer is None:
+            self.renderer = Grid2DRenderer(self.window_name, self.width, self.height)
+
+        if mode == 'human':
+            # set the colour for each grid cell
+            for x in range(self.width):
+                for y in range(self.height):
+                    cell_contents = self.world[x, y]
+                    cell_colour = self.metadata['cell colours'][cell_contents]
+                    self.renderer.set_cell_colour(x, y, cell_colour)
+            # render to the screen
+            self.renderer.render()
+        elif mode == 'rgb_array':
+            # set the colour for each grid cell
+            for x in range(self.width):
+                for y in range(self.height):
+                    cell_contents = self.world[x, y]
+                    cell_colour = self.metadata['cell colours'][cell_contents]
+                    self.renderer.set_cell_colour(x, y, cell_colour)
+
+            return self.renderer.get_rgb_array()
+        elif mode == 'ansi':
+            string = ""
+            for y in range(self.height):
+                for x in range(self.width):
+                    contents = self.world[x, y]
+                    if contents == CellTypes.Empty:
+                        string += " "
+                    elif contents == CellTypes.Wall:
+                        string += "#"
+                    elif contents == CellTypes.Player:
+                        string += "P"
+                    elif contents == CellTypes.Rabbit_1:
+                        string += "1"
+                    elif contents == CellTypes.Rabbit_2:
+                        string += "2"
+                    elif contents == CellTypes.Rabbit_3:
+                        string += "3"
+                    elif contents == CellTypes.DropOff:
+                        string += "D"
+                string += "\n"
+            return string
 
     def move_rabbits(self):
+        # clear the previous array
+        self.new_rabbit_cells = np.empty(shape=(self.width, self.height), dtype=object)
         # get a list of all the rabbits
         rabbit_list = []
         for x in range(self.width):
             for y in range(self.height):
                 if self.world[x, y] == CellTypes.Rabbit_1 or self.world[x, y] == CellTypes.Rabbit_2 or self.world[x, y] == CellTypes.Rabbit_3:
                     rabbit_list.append((x, y))
+
+        if len(rabbit_list) == 0:
+            self.done = True
 
         for rabbit in rabbit_list:
             destination = rabbit        # default to not moving
@@ -250,15 +335,8 @@ class HuntingRabbits(gym.Env):
             rabbit_type = self.world[rabbit[0], rabbit[1]]
             self.world[rabbit[0], rabbit[1]] = CellTypes.Empty
             self.world[destination[0], destination[1]] = rabbit_type
+            self.new_rabbit_cells[rabbit[0], rabbit[1]] = destination
 
         return
 
 
-class CellTypes(enum.IntEnum):
-    Empty = 0
-    Wall = 1
-    Player = 2
-    DropOff = 3
-    Rabbit_1 = 4
-    Rabbit_2 = 5
-    Rabbit_3 = 6

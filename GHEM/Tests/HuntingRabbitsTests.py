@@ -1,3 +1,5 @@
+import time
+
 from GHEM.Environments.HuntingRabbits import *
 
 
@@ -25,5 +27,28 @@ def test_random_rollouts():
             # add a real test method here
 
 
+def test_human_rendering():
+    seed = 632464  # SDTH as seed
+    random.seed(seed)
+    num_iterations = 20
+    size_lower_bound = 10
+    size_upper_bound = 100
+
+    maze_width = random.randrange(size_lower_bound, size_upper_bound, 1)
+    maze_height = random.randrange(size_lower_bound, size_upper_bound, 1)
+    env = HuntingRabbits(width=maze_width, height=maze_height)
+    obs_space = env.observation_space
+
+    done = False
+    obs = env.reset()
+    while not done:
+        env.render('human')
+        time.sleep(0.1)
+        # input("press a key for the next time step")
+        action = env.action_space.sample()
+        obs, reward, done, info = env.step(action)
+
+
 if __name__ == '__main__':
     test_random_rollouts()
+    test_human_rendering()
