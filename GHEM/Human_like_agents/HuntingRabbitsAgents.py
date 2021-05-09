@@ -29,7 +29,9 @@ def pick_target_rabbit(world):
     if current_target_rabbit is not None:
         return current_target_rabbit
     else:
-        raise Exception("Error finding rabbit to target, no rabbits found")
+        # no rabbits left so the best play is to leave (is it worth adding this complexity?)
+        # return find_dropoff(world)
+        return (1, 1) # ignore the drop off
 
 
 def pick_target_bitten(world):
@@ -83,10 +85,10 @@ def find_all_rabbits(world):
     return rabbit_list
 
 
-def move_to_cell(current_cell, target_cell):
+def move_to_cell(current_cell, target_cell, player_speed):
     x_diff = np.clip(target_cell[0] - current_cell[0], -2, 2)
     y_diff = np.clip(target_cell[1] - current_cell[1], -2, 2)
-    return (x_diff, y_diff)
+    return (x_diff + player_speed, y_diff + player_speed)
 
 
 class HuntingRabbitsAgent(Agent, ABC):
@@ -94,22 +96,22 @@ class HuntingRabbitsAgent(Agent, ABC):
         assert isinstance(env, HuntingRabbits)
         self.env = env
         self.target_rabbit_cell = pick_target_rabbit(env.world)
-        self.target_rabbit_speed = find_speed(env.world[self.target_rabbit_cell])
+        self.target_rabbit_speed = find_speed(env.world[self.target_rabbit_cell[0], self.target_rabbit_cell[1]])
         self.previous_rabbits = find_all_rabbits(env.world)
 
     def reset(self, env):
         self.__init__(env)
 
     def target_rabbit_is_caught(self):
-        new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
+        new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell[0], self.target_rabbit_cell[1]]
         if new_target_rabbit_cell is None:      # caught
             return True
         else:                                   # not caught
             return False
 
     def target_rabbit_speed_up(self, observation):
-        new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
-        new_target_rabbit_speed = find_speed(observation[new_target_rabbit_cell])
+        new_target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell[0], self.target_rabbit_cell[1]]
+        new_target_rabbit_speed = find_speed(observation[new_target_rabbit_cell[0], new_target_rabbit_cell[1]])
         if new_target_rabbit_speed > self.target_rabbit_speed:
             return True
         else:
@@ -117,8 +119,8 @@ class HuntingRabbitsAgent(Agent, ABC):
 
     def non_target_rabbit_slowed_down(self, observation):
         for previous_cell, previous_speed in self.previous_rabbits:
-            new_cell = self.env.new_rabbit_cells[previous_cell]
-            new_speed = find_speed(observation[new_cell])
+            new_cell = self.env.new_rabbit_cells[previous_cell[0], previous_cell[1]]
+            new_speed = find_speed(observation[new_cell[0], new_cell[1]])
             if new_speed < previous_speed:
                 return True
 
@@ -127,49 +129,53 @@ class HuntingRabbitsAgent(Agent, ABC):
 
 class SunkCostNewRabbit(HuntingRabbitsAgent):
     def act(self, observation, reward, done):
+        world = observation['World']
         if not done:
-            assert observation == self.env.world
+            assert np.array_equal(world, self.env.world)
 
             switch_target = False
             if self.target_rabbit_is_caught():
                 switch_target = True
-            elif self.target_rabbit_speed_up(observation):
+            elif self.target_rabbit_speed_up(world):
                 switch_target = True
-            # elif self.non_target_rabbit_slowed_down(observation):
+            # elif self.non_target_rabbit_slowed_down(world):
             #     switch_target = True
 
             if switch_target:
-                self.target_rabbit_cell = pick_target_rabbit(observation)
+                self.target_rabbit_cell = pick_target_rabbit(world)
             else:
-                self.target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
-            self.target_rabbit_speed = find_speed(observation[self.target_rabbit_cell])
+                self.target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell[0], self.target_rabbit_cell[1]]
+            self.target_rabbit_speed = find_speed(world[self.target_rabbit_cell[0], self.target_rabbit_cell[1]])
 
-            player_cell = find_player(observation)
-            action = move_to_cell(player_cell, self.target_rabbit_cell)
+            # self.previous_rabbits = find_all_rabbits(world) not needed for this agent
+            player_cell = find_player(world)
+            action = move_to_cell(player_cell, self.target_rabbit_cell, self.env.player_speed)
             return action
 
 
 class SunkCostTargetSpeedUp(HuntingRabbitsAgent):
     def act(self, observation, reward, done):
+        world = observation['World']
         if not done:
-            assert observation == self.env.world
+            assert np.array_equal(world, self.env.world)
 
             switch_target = False
             if self.target_rabbit_is_caught():
                 switch_target = True
-            # elif self.target_rabbit_speed_up(observation):
+            # elif self.target_rabbit_speed_up(world):
             #     switch_target = True
-            elif self.non_target_rabbit_slowed_down(observation):
+            elif self.non_target_rabbit_slowed_down(world):
                 switch_target = True
 
             if switch_target:
-                self.target_rabbit_cell = pick_target_rabbit(observation)
+                self.target_rabbit_cell = pick_target_rabbit(world)
             else:
-                self.target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
-            self.target_rabbit_speed = find_speed(observation[self.target_rabbit_cell])
+                self.target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell[0], self.target_rabbit_cell[1]]
+            self.target_rabbit_speed = find_speed(world[self.target_rabbit_cell[0], self.target_rabbit_cell[1]])
 
-            player_cell = find_player(observation)
-            action = move_to_cell(player_cell, self.target_rabbit_cell)
+            self.previous_rabbits = find_all_rabbits(world)
+            player_cell = find_player(world)
+            action = move_to_cell(player_cell, self.target_rabbit_cell, self.env.player_speed)
             return action
 
 
@@ -179,8 +185,9 @@ class NonAdaptiveChoiceAgent(HuntingRabbitsAgent):
         self.bitten = False
 
     def act(self, observation, reward, done):
+        world = observation['World']
         if not done:
-            assert observation == self.env.world
+            assert np.array_equal(world, self.env.world)
 
             if reward == -100:
                 self.bitten = True
@@ -188,20 +195,21 @@ class NonAdaptiveChoiceAgent(HuntingRabbitsAgent):
             switch_target = False
             if self.target_rabbit_is_caught():
                 switch_target = True
-            elif self.target_rabbit_speed_up(observation):
+            elif self.target_rabbit_speed_up(world):
                 switch_target = True
-            elif self.non_target_rabbit_slowed_down(observation):
+            elif self.non_target_rabbit_slowed_down(world):
                 switch_target = True
 
             if switch_target:
                 if not self.bitten:
-                    self.target_rabbit_cell = pick_target_rabbit(observation)
+                    self.target_rabbit_cell = pick_target_rabbit(world)
                 else:
-                    self.target_rabbit_cell = pick_target_bitten(observation)
+                    self.target_rabbit_cell = pick_target_bitten(world)
             else:
                 self.target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell]
-            self.target_rabbit_speed = find_speed(observation[self.target_rabbit_cell])
+            self.target_rabbit_speed = find_speed(world[self.target_rabbit_cell])
 
-            player_cell = find_player(observation)
-            action = move_to_cell(player_cell, self.target_rabbit_cell)
+            self.previous_rabbits = find_all_rabbits(world)
+            player_cell = find_player(world)
+            action = move_to_cell(player_cell, self.target_rabbit_cell, self.env.player_speed)
             return action
