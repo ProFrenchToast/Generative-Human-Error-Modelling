@@ -2,6 +2,8 @@ import time
 
 from GHEM.Human_like_agents.HuntingRabbitsAgents import *
 from GHEM.Environments.HuntingRabbits import HuntingRabbits
+from GHEM.Tests.HuntingRabbitsMockEnv import HuntingRabbitsTestEnv
+
 
 def test_sunkCostNewRabbit():
     seed = 632464  # SDTH as seed
@@ -79,7 +81,124 @@ def test_nonAdaptiveChoiceAgent():
         obs, reward, done, info = env.step(action)
 
 
+def test_sunkCostNewRabbit_newRabbit():
+    env = HuntingRabbitsTestEnv()
+    agent = SunkCostNewRabbit(env)
+    obs = env.reset()
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))     # default target
+
+    env.world[1, 8] = CellTypes.Rabbit_1    # create a new slower rabbit
+    obs, _, _, _ = env.step((0, 0))        # take no action
+    _ = agent.act(obs, 0, False)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))
+
+
+def test_sunkCostNewRabbit_speedUp():
+    env = HuntingRabbitsTestEnv()
+    agent = SunkCostNewRabbit(env)
+    obs = env.reset()
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))  # default target
+
+    env.world[1, 1] = CellTypes.Rabbit_3  # speed up the target rabbit
+    obs, _, _, _ = env.step((0, 0))  # take no action
+    _ = agent.act(obs, 0, False)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 8))
+
+
+def test_sunkCostSpeedUp_newRabbit():
+    env = HuntingRabbitsTestEnv()
+    agent = SunkCostTargetSpeedUp(env)
+    obs = env.reset()
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))  # default target
+
+    env.world[1, 8] = CellTypes.Rabbit_1  # create a new slower rabbit
+    obs, _, _, _ = env.step((0, 0))  # take no action
+    _ = agent.act(obs, 0, False)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 8))
+
+
+def test_sunkCostSpeedUp_speedUp():
+    env = HuntingRabbitsTestEnv()
+    agent = SunkCostTargetSpeedUp(env)
+    obs = env.reset()
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))  # default target
+
+    env.world[1, 1] = CellTypes.Rabbit_3  # speed up the target rabbit
+    obs, _, _, _ = env.step((0, 0))  # take no action
+    _ = agent.act(obs, 0, False)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))
+
+
+def test_nonAdaptiveChoice_newRabbit():
+    env = HuntingRabbitsTestEnv()
+    agent = NonAdaptiveChoiceAgent(env)
+    obs = env.reset()
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))  # default target
+
+    env.world[1, 8] = CellTypes.Rabbit_1  # create a new slower rabbit
+    obs, _, _, _ = env.step((0, 0))  # take no action
+    _ = agent.act(obs, 0, False)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 8))
+
+
+def test_nonAdaptiveChoice_speedUp():
+    env = HuntingRabbitsTestEnv()
+    agent = NonAdaptiveChoiceAgent(env)
+    obs = env.reset()
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))  # default target
+
+    env.world[1, 1] = CellTypes.Rabbit_3  # speed up the target rabbit
+    obs, _, _, _ = env.step((0, 0))  # take no action
+    _ = agent.act(obs, 0, False)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 8))
+
+
+def test_nonAdaptiveChoice_bitten():
+    env = HuntingRabbitsTestEnv()
+    agent = NonAdaptiveChoiceAgent(env)
+    obs = env.reset()
+    # make the target rabbit slow
+    env.world[1, 1] = CellTypes.Rabbit_1
+    obs, _, _, _ = env.step((0, 0))  # take no action
+
+
+    _ = agent.act(obs, 0, False)
+    assert np.array_equal(agent.target_rabbit_cell, (1, 1))  # default target
+
+    _ = agent.act(obs, -100, False)         # make the agent exprience a sick rabbit (bitten)
+
+    assert np.array_equal(agent.target_rabbit_cell, (1, 8))     # check it ignores sick rabbits
+
+
 if __name__ == '__main__':
     test_sunkCostNewRabbit()
     test_sunkCostSpeedUp()
     test_nonAdaptiveChoiceAgent()
+
+    test_sunkCostNewRabbit_newRabbit()
+    test_sunkCostNewRabbit_speedUp()
+
+    test_sunkCostSpeedUp_newRabbit()
+    test_sunkCostSpeedUp_speedUp()
+
+    test_nonAdaptiveChoice_newRabbit()
+    test_nonAdaptiveChoice_speedUp()
+    test_nonAdaptiveChoice_bitten()

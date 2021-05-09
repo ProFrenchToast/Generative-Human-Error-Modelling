@@ -120,6 +120,8 @@ class HuntingRabbitsAgent(Agent, ABC):
     def non_target_rabbit_slowed_down(self, observation):
         for previous_cell, previous_speed in self.previous_rabbits:
             new_cell = self.env.new_rabbit_cells[previous_cell[0], previous_cell[1]]
+            if new_cell is None:        #cover the edge case where a non target gets caught by accident
+                continue
             new_speed = find_speed(observation[new_cell[0], new_cell[1]])
             if new_speed < previous_speed:
                 return True
@@ -147,7 +149,7 @@ class SunkCostNewRabbit(HuntingRabbitsAgent):
                 self.target_rabbit_cell = self.env.new_rabbit_cells[self.target_rabbit_cell[0], self.target_rabbit_cell[1]]
             self.target_rabbit_speed = find_speed(world[self.target_rabbit_cell[0], self.target_rabbit_cell[1]])
 
-            # self.previous_rabbits = find_all_rabbits(world) not needed for this agent
+            self.previous_rabbits = find_all_rabbits(world)
             player_cell = find_player(world)
             action = move_to_cell(player_cell, self.target_rabbit_cell, self.env.player_speed)
             return action
@@ -189,15 +191,16 @@ class NonAdaptiveChoiceAgent(HuntingRabbitsAgent):
         if not done:
             assert np.array_equal(world, self.env.world)
 
-            if reward == -100:
-                self.bitten = True
-
             switch_target = False
             if self.target_rabbit_is_caught():
                 switch_target = True
             elif self.target_rabbit_speed_up(world):
                 switch_target = True
             elif self.non_target_rabbit_slowed_down(world):
+                switch_target = True
+
+            if reward == -100:
+                self.bitten = True
                 switch_target = True
 
             if switch_target:
