@@ -35,7 +35,7 @@ class AssumeOptimalAgent(Agent):
         return player_actions
 
 
-class AssumeSubOptimalAgent(Agent):
+class AssumeNoMagicAgent(Agent):
     def __init__(self, env):
         self.env = env
 
@@ -43,7 +43,6 @@ class AssumeSubOptimalAgent(Agent):
         self.env = env
 
     def act(self, observation, reward, done):
-        # todo: need to check if this is the correct policy for suboptimal agents
         apple_list = observation['Apples']
 
         num_apples = len(apple_list)
@@ -53,6 +52,35 @@ class AssumeSubOptimalAgent(Agent):
 
         for apple_index in range(num_apples):
             if player_actions_taken < num_player_actions:
+                player_actions.append(True)
+                player_actions_taken += 1
+            else:
+                player_actions.append(False)
+        return player_actions
+
+
+class AssumeHasMagicAgent(Agent):
+    def __init__(self, env):
+        self.env = env
+
+    def reset(self, env):
+        self.env = env
+
+    def act(self, observation, reward, done):
+        apple_list = observation['Apples']
+
+        num_apples = len(apple_list)
+        num_player_actions = np.floor(num_apples / 2)
+        max_magic = self.env.max_magic
+        player_actions = []
+        druid_actions_taken = 0
+        player_actions_taken = 0
+
+        for apple_index in range(num_apples):
+            if druid_actions_taken < max_magic:
+                player_actions.append(False)
+                druid_actions_taken += 1
+            elif player_actions_taken < num_player_actions:
                 player_actions.append(True)
                 player_actions_taken += 1
             else:

@@ -88,6 +88,8 @@ class PickingApplesBase(gym.Env, ABC):
                                ('assumes_no_magic', assumes_no_magic_druid), ('worst', worst_druid)]
 
     def __init__(self, seed=random.getstate(), num_apples=10, max_magic=3, max_apple_value=10, time_limit=200):
+        assert max_magic <= np.ceil(num_apples/2)
+
         self.action_space = gym.spaces.MultiBinary(num_apples)
         self.observation_space = gym.spaces.Dict({
             "Apples": gym.spaces.Box(low=0, high=max_apple_value, shape=(num_apples, 1), dtype=float),
@@ -124,8 +126,8 @@ class PickingApplesBase(gym.Env, ABC):
         if total_apples_picked > self.num_actions:
             return self.get_obs(), -100, self.done, {}
 
-        druid_action = self.druid_take_action(self.current_apples, self.current_magic, self.max_magic)
-        reward = self.calculate_reward(action, druid_action)
+        self._druid_action = self.druid_take_action(self.current_apples, self.current_magic, self.max_magic)
+        reward = self.calculate_reward(action, self._druid_action)
         return self.get_obs(), reward, self.done, {}
 
     def reset(self):
