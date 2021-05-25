@@ -9,7 +9,7 @@ def test_random_rollouts():
     size_upper_bound = 100
     for i in range(num_iterations):
         apples = random.randrange(size_lower_bound, size_upper_bound, 1)
-        magic = random.randrange(size_lower_bound, size_upper_bound, 1)
+        magic = random.randrange(size_lower_bound, np.ceil(apples / 2), 1)
         value = random.randrange(size_lower_bound, size_upper_bound, 1)
         env = CooperativePickingApples(num_apples=apples, max_magic=magic, max_apple_value=value)
         obs_space = env.observation_space

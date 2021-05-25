@@ -170,6 +170,10 @@ class HuntingRabbits(gym.Env):
         valid_action = True
         player_cell = find_player(self.world)
 
+        # round non-int actions and validate they are in the right range
+        action = np.array(action)
+        action = action.astype(int)
+
         target_cell = ((player_cell[0] + (action[0] - self.player_speed)),
                        (player_cell[1] + (action[1] - self.player_speed)))
 

@@ -243,7 +243,8 @@ class TimeMaze(gym.Env):
             return self.maze, reward, self.done, {}
 
         # round non-int actions and validate they are in the right range
-        action = np.rint(action)
+        action = np.array(action)
+        action = action.astype(int)
 
         player_cell = find_player(self.maze)
 

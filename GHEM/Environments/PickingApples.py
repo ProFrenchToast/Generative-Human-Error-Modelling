@@ -117,6 +117,10 @@ class PickingApplesBase(gym.Env, ABC):
             self.done = True
             return self.get_obs(), 0, self.done, {}
 
+        # round non-int actions and validate they are in the right range
+        action = np.array(action)
+        action = action.astype(int)
+
         # all this does is check that the actions are valid and get the druid actions, the subclasses calc the reward.
         total_apples_picked = 0
         for picked in action:
