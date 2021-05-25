@@ -3,7 +3,7 @@ from math import sqrt
 
 import numpy as np
 
-from BaseModels import *
+from GHEM.Models.BaseModels import *
 
 import torch.nn as nn
 import torch
@@ -74,8 +74,7 @@ class TimeMazeGenerator(BaseGenerator):
         fc_blocks += [nn.Linear(previous_layer_size, next_layer_size),
                       nn.Dropout(0.5)]
 
-        fc_blocks += [nn.Linear(next_layer_size, 4),
-                      nn.Softmax()]
+        fc_blocks += [nn.Linear(next_layer_size, 1)]
         self.fc_blocks = nn.Sequential(*fc_blocks)
 
     def forward(self, error_vector, observation):
@@ -85,6 +84,7 @@ class TimeMazeGenerator(BaseGenerator):
         combined = torch.cat((conv_results_flattened, error_vector_flattened), 0)
         fc_results = self.fc_blocks(combined)
         return fc_results
+
 
 
 class TimeMazeDiscriminator(BaseDiscriminator):
@@ -150,14 +150,16 @@ class TimeMazeDiscriminator(BaseDiscriminator):
         fc_blocks += [nn.Linear(previous_layer_size, next_layer_size),
                       nn.Dropout(0.5)]
 
-        fc_blocks += [nn.Linear(next_layer_size, 1)]
+        fc_blocks += [nn.Linear(next_layer_size, 1),
+                      nn.Softmax()]
         self.fc_blocks = nn.Sequential(*fc_blocks)
 
     def forward(self, error_vector, observation, action):
         conv_results = self.conv_blocks(observation)
         conv_results_flattened = torch.flatten(conv_results)
         error_vector_flattened = torch.flatten(error_vector)
-        combined = torch.cat((conv_results_flattened, error_vector_flattened, action), 0)
+        action_flattened = torch.flatten(action)
+        combined = torch.cat((conv_results_flattened, error_vector_flattened, action_flattened), 0)
         fc_results = self.fc_blocks(combined)
         return fc_results
 

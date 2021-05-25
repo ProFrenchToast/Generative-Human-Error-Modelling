@@ -25,10 +25,11 @@ def generate_maze(width, height):
     # select a random starting point
     start_x = random.randrange(0, width, 1)
     start_y = random.randrange(0, height, 1)
-    maze[start_x, start_y] = CellTypes.Player
 
     # now randomly build the maze
     random_breath_search(maze, (start_x, start_y))
+
+    maze[start_x, start_y] = CellTypes.Player
 
     # randomly place the goal
     goal_placed = False
@@ -48,14 +49,6 @@ def generate_maze(width, height):
             maze[stopwatch_x, stopwatch_y] = CellTypes.Stopwatch
             stopwatch_placed = True
 
-    # randomly place the player
-    player_placed = False
-    while not player_placed:
-        player_x = random.randrange(0, width, 1)
-        player_y = random.randrange(0, height, 1)
-        if maze[player_x, player_y] == CellTypes.Empty:
-            maze[player_x, player_y] = CellTypes.Player
-            player_placed = True
 
     return maze
 
@@ -171,6 +164,8 @@ class TimeMaze(gym.Env):
 
     def __init__(self, seed=None, width=30, height=30):
         self.action_space = gym.spaces.Discrete(4)
+        # actions "should" be discrete but the env will automatically round it to the nearest int.
+        # This is done so that agents can have actions that are differentiable even in a discrete env
         self.observation_space = gym.spaces.Box(low=0, high=max(CellTypes), shape=(width, height), dtype=int)
         self.initial_seed = seed
         if seed is not None:
@@ -246,6 +241,9 @@ class TimeMaze(gym.Env):
             reward = 0
             self.done = True
             return self.maze, reward, self.done, {}
+
+        # round non-int actions and validate they are in the right range
+        action = np.rint(action)
 
         player_cell = find_player(self.maze)
 

@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -15,6 +16,9 @@ class BaseGenerator(nn.Module):
 
 
 class BaseDiscriminator(nn.Module):
+    real_label = torch.tensor(1.0).unsqueeze(0)
+    fake_label = torch.tensor(0.0).unsqueeze(0)
+
     def __init__(self):
         raise NotImplementedError
 

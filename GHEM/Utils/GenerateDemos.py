@@ -1,5 +1,7 @@
 import pickle
 
+import torch
+
 from GHEM.Models.BaseModels import BaseGenerator
 from GHEM.Utils.BaseAgent import AgentWrapper
 from GHEM.Utils.ErrorVector import BaseErrorVectorGen
@@ -20,8 +22,9 @@ def generate_demonstration(env, agent):
     while not done:
         action = agent.act(current_state, current_reward, done)
         current_demonstration.append((current_state, action, current_reward))
-
-        current_state, current_reward, done = env.step(action)
+        if isinstance(action, torch.Tensor):
+            action = action.detach()
+        current_state, current_reward, done, _ = env.step(action)
         total_reward += current_reward
 
     return current_demonstration, total_reward
@@ -49,6 +52,7 @@ def generate_demonstrations_from_classes(env, agent_classes, episodes):
     demonstrations = []  # a list that contains a tuples (demonstration, total_reward)
     for agent_index in range(len(agent_classes)):
         for demo in range(episodes[agent_index]):
+            _ = env.reset()
             agent = agent_classes[agent_index](env)
             demonstrations.append(generate_demonstration(env, agent))
 

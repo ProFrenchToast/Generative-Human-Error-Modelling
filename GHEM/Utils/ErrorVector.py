@@ -1,9 +1,25 @@
+import random
+
+
 class BaseErrorVectorGen(object):
-    def __init__(self):
+    def __init__(self, shape):
         raise NotImplementedError
 
     def generate(self):
         raise NotImplementedError
+
+
+class RandRangeErrorGen(BaseErrorVectorGen):
+
+    def __init__(self, min_value, max_value, shape):
+        assert min_value < max_value
+        self.shape = shape
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def generate(self):
+        error_vector = random.uniform(self.min_value, self.max_value)
+        return error_vector
 
 
 def error_inverse_reward(demonstrations, env, agent_classes, episodes):
